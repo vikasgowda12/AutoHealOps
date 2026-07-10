@@ -1,15 +1,12 @@
-name: AutoHealOps CI Pipeline
+name: AutoHealOps CI/CD Pipeline
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
 jobs:
-  build-and-test:
+  build-test-push:
     runs-on: ubuntu-latest
 
     steps:
@@ -27,3 +24,16 @@ jobs:
 
       - name: Test health endpoint
         run: curl --fail http://localhost:8000/health
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: vikasgowda12/autohealops-backend:latest
