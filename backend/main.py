@@ -10,7 +10,7 @@ app = FastAPI(
 @app.get("/")
 def home():
     return {
-        "message": "AutoHealOps CI Pipeline is working",
+        "message": "AutoHealOps CI/CD Pipeline is working",
         "status": "healthy"
     }
 
