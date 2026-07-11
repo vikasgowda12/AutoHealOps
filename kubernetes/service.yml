@@ -3,13 +3,16 @@ kind: Service
 
 metadata:
   name: autohealops-service
+  labels:
+    app: autohealops-backend
 
 spec:
   selector:
     app: autohealops-backend
 
   ports:
-    - protocol: TCP
+    - name: http
+      protocol: TCP
       port: 8000
       targetPort: 8000
 

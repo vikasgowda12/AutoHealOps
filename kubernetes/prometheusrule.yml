@@ -1,0 +1,20 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+
+metadata:
+  name: autohealops-alerts
+  labels:
+    release: monitoring
+
+spec:
+  groups:
+    - name: autohealops.rules
+      rules:
+        - alert: AutoHealOpsContainerRestarted
+          expr: increase(kube_pod_container_status_restarts_total{container="autohealops-backend"}[5m]) > 0
+          for: 10s
+          labels:
+            severity: warning
+          annotations:
+            summary: "AutoHealOps container restarted"
+            description: "An AutoHealOps container has restarted during the last 5 minutes."
