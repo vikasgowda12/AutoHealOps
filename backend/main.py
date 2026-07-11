@@ -10,10 +10,14 @@ app = FastAPI(
 )
 
 
-# Allow React frontend to communicate with FastAPI backend
+# Allow frontend applications to communicate with FastAPI
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:8080",
+        "http://localhost:8081"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -24,6 +28,7 @@ app.add_middleware(
 PROMETHEUS_URL = "http://127.0.0.1:9090"
 
 
+# Home endpoint
 @app.get("/")
 def home():
     return {
@@ -32,7 +37,7 @@ def home():
     }
 
 
-# Healthy endpoint for Kubernetes probes
+# Health endpoint used by Kubernetes
 @app.get("/health")
 def health_check():
     return {
@@ -40,10 +45,14 @@ def health_check():
     }
 
 
+# Dashboard endpoint
 @app.get("/dashboard")
 def dashboard():
 
-    # Get the real number of READY AutoHealOps Pods
+    # -----------------------------------
+    # GET NUMBER OF READY PODS
+    # -----------------------------------
+
     pods_query = (
         'kube_pod_status_ready'
         '{namespace="default", condition="true", '
@@ -63,7 +72,10 @@ def dashboard():
     )
 
 
-    # Get total AutoHealOps container restarts
+    # -----------------------------------
+    # GET CONTAINER RESTARTS
+    # -----------------------------------
+
     restarts_query = (
         'sum(kube_pod_container_status_restarts_total'
         '{container="autohealops-backend"})'
@@ -83,10 +95,15 @@ def dashboard():
     )
 
 
-    # Get active AutoHealOps alerts
+    # -----------------------------------
+    # GET ACTIVE PROMETHEUS ALERTS
+    # -----------------------------------
+
     alerts_query = (
-        'ALERTS{alertstate="firing",'
-        'alertname="AutoHealOpsContainerRestarted"}'
+        'ALERTS{'
+        'alertstate="firing",'
+        'alertname="AutoHealOpsContainerRestarted"'
+        '}'
     )
 
     alerts_response = requests.get(
@@ -99,13 +116,20 @@ def dashboard():
     active_alerts = len(alerts_result)
 
 
-    # Determine application status
+    # -----------------------------------
+    # DETERMINE APPLICATION STATUS
+    # -----------------------------------
+
     application_status = (
         "Healthy"
         if running_pods > 0
         else "Unhealthy"
     )
 
+
+    # -----------------------------------
+    # RETURN DASHBOARD DATA
+    # -----------------------------------
 
     return {
         "application_status": application_status,
@@ -115,5 +139,5 @@ def dashboard():
     }
 
 
-# Expose application metrics for Prometheus
+# Expose FastAPI metrics for Prometheus
 Instrumentator().instrument(app).expose(app)

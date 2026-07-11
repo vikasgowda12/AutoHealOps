@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: autohealops-frontend
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: autohealops-frontend
+
+  template:
+    metadata:
+      labels:
+        app: autohealops-frontend
+
+    spec:
+      containers:
+        - name: autohealops-frontend
+          image: autohealops-frontend:latest
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - containerPort: 80
+
+---
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: autohealops-frontend-service
+
+spec:
+  selector:
+    app: autohealops-frontend
+
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+
+  type: ClusterIP
