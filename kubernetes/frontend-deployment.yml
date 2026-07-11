@@ -18,8 +18,8 @@ spec:
     spec:
       containers:
         - name: autohealops-frontend
-          image: autohealops-frontend:latest
-          imagePullPolicy: IfNotPresent
+          image: vikasgowda12/autohealops-frontend:latest
+          imagePullPolicy: Always
 
           ports:
             - containerPort: 80
@@ -27,7 +27,6 @@ spec:
 ---
 apiVersion: v1
 kind: Service
-
 metadata:
   name: autohealops-frontend-service
 
