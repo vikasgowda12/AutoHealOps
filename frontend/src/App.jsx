@@ -41,7 +41,7 @@ function App() {
 
         <div className="card">
           <h2>Application Status</h2>
-          <p className="status">
+          <p className={data.application_status === 'Healthy' ? 'status' : 'error-status'}>
             {data.application_status}
           </p>
         </div>
@@ -59,6 +59,19 @@ function App() {
         <div className="card">
           <h2>Active Alerts</h2>
           <p>{data.active_alerts}</p>
+        </div>
+
+        <div className="card">
+          <h2>Prometheus Status</h2>
+          <p
+            className={
+              data.prometheus_status === 'Connected'
+                ? 'status'
+                : 'error-status'
+            }
+          >
+            {data.prometheus_status}
+          </p>
         </div>
 
       </div>

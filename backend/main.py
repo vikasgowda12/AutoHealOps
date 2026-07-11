@@ -9,8 +9,6 @@ app = FastAPI(
     version="1.0.0"
 )
 
-
-# Allow frontend applications to communicate with FastAPI
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -23,12 +21,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-# Prometheus URL
 PROMETHEUS_URL = "http://127.0.0.1:9090"
 
 
-# Home endpoint
 @app.get("/")
 def home():
     return {
@@ -37,7 +32,6 @@ def home():
     }
 
 
-# Health endpoint used by Kubernetes
 @app.get("/health")
 def health_check():
     return {
@@ -45,99 +39,102 @@ def health_check():
     }
 
 
-# Dashboard endpoint
 @app.get("/dashboard")
 def dashboard():
 
-    # -----------------------------------
-    # GET NUMBER OF READY PODS
-    # -----------------------------------
+    try:
+        # Get number of Ready AutoHealOps Pods
+        pods_query = (
+            'kube_pod_status_ready'
+            '{namespace="default", condition="true", '
+            'pod=~"autohealops-backend-.*"}'
+        )
 
-    pods_query = (
-        'kube_pod_status_ready'
-        '{namespace="default", condition="true", '
-        'pod=~"autohealops-backend-.*"}'
-    )
+        pods_response = requests.get(
+            f"{PROMETHEUS_URL}/api/v1/query",
+            params={"query": pods_query},
+            timeout=5
+        )
 
-    pods_response = requests.get(
-        f"{PROMETHEUS_URL}/api/v1/query",
-        params={"query": pods_query}
-    )
+        pods_response.raise_for_status()
 
-    pods_result = pods_response.json()["data"]["result"]
+        pods_result = pods_response.json()["data"]["result"]
 
-    running_pods = sum(
-        int(float(pod["value"][1]))
-        for pod in pods_result
-    )
-
-
-    # -----------------------------------
-    # GET CONTAINER RESTARTS
-    # -----------------------------------
-
-    restarts_query = (
-        'sum(kube_pod_container_status_restarts_total'
-        '{container="autohealops-backend"})'
-    )
-
-    restarts_response = requests.get(
-        f"{PROMETHEUS_URL}/api/v1/query",
-        params={"query": restarts_query}
-    )
-
-    restarts_result = restarts_response.json()["data"]["result"]
-
-    container_restarts = (
-        int(float(restarts_result[0]["value"][1]))
-        if restarts_result
-        else 0
-    )
+        running_pods = sum(
+            int(float(pod["value"][1]))
+            for pod in pods_result
+        )
 
 
-    # -----------------------------------
-    # GET ACTIVE PROMETHEUS ALERTS
-    # -----------------------------------
+        # Get total container restarts
+        restarts_query = (
+            'sum(kube_pod_container_status_restarts_total'
+            '{container="autohealops-backend"})'
+        )
 
-    alerts_query = (
-        'ALERTS{'
-        'alertstate="firing",'
-        'alertname="AutoHealOpsContainerRestarted"'
-        '}'
-    )
+        restarts_response = requests.get(
+            f"{PROMETHEUS_URL}/api/v1/query",
+            params={"query": restarts_query},
+            timeout=5
+        )
 
-    alerts_response = requests.get(
-        f"{PROMETHEUS_URL}/api/v1/query",
-        params={"query": alerts_query}
-    )
+        restarts_response.raise_for_status()
 
-    alerts_result = alerts_response.json()["data"]["result"]
+        restarts_result = restarts_response.json()["data"]["result"]
 
-    active_alerts = len(alerts_result)
-
-
-    # -----------------------------------
-    # DETERMINE APPLICATION STATUS
-    # -----------------------------------
-
-    application_status = (
-        "Healthy"
-        if running_pods > 0
-        else "Unhealthy"
-    )
+        container_restarts = (
+            int(float(restarts_result[0]["value"][1]))
+            if restarts_result
+            else 0
+        )
 
 
-    # -----------------------------------
-    # RETURN DASHBOARD DATA
-    # -----------------------------------
+        # Get active Prometheus alerts
+        alerts_query = (
+            'ALERTS{'
+            'alertstate="firing",'
+            'alertname="AutoHealOpsContainerRestarted"'
+            '}'
+        )
 
-    return {
-        "application_status": application_status,
-        "running_pods": running_pods,
-        "container_restarts": container_restarts,
-        "active_alerts": active_alerts
-    }
+        alerts_response = requests.get(
+            f"{PROMETHEUS_URL}/api/v1/query",
+            params={"query": alerts_query},
+            timeout=5
+        )
+
+        alerts_response.raise_for_status()
+
+        alerts_result = alerts_response.json()["data"]["result"]
+
+        active_alerts = len(alerts_result)
 
 
-# Expose FastAPI metrics for Prometheus
+        application_status = (
+            "Healthy"
+            if running_pods > 0
+            else "Unhealthy"
+        )
+
+
+        return {
+            "application_status": application_status,
+            "running_pods": running_pods,
+            "container_restarts": container_restarts,
+            "active_alerts": active_alerts,
+            "prometheus_status": "Connected"
+        }
+
+
+    except requests.RequestException:
+
+        return {
+            "application_status": "Unknown",
+            "running_pods": 0,
+            "container_restarts": 0,
+            "active_alerts": 0,
+            "prometheus_status": "Disconnected"
+        }
+
+
 Instrumentator().instrument(app).expose(app)
